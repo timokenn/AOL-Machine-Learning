@@ -3,8 +3,9 @@ import pandas as pd
 import joblib
 import time
 import io
+import os
 
-# ── Page config ───────────────────────────────────────────────────────────────
+# Page config
 st.set_page_config(
     page_title="RecruitAI · Resume Screener",
     page_icon="🎯",
@@ -12,14 +13,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
+# CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
 
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 .stApp { background: #07090f; color: #dde1ec; }
-.block-container { padding-top: 1.8rem !important; padding-bottom: 3rem !important; max-width: 1200px !important; }
+.block-container { padding-top: 1.8rem !important; padding-bottom: 3rem !important; }
 #MainMenu, footer, header { visibility: hidden; }
 
 /* ── Top nav bar ── */
@@ -58,15 +59,18 @@ div[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
 
 /* ── Cards ── */
 .card {
-    background: #0d1117; border: 1px solid rgba(255,255,255,0.06);
+    background: #0d1117; border: 1px solid rgba(255,255,255,0.08);
     border-radius: 16px; padding: 1.6rem 1.8rem; margin-bottom: 1rem;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
 }
 .card-title {
-    font-family: 'Syne', sans-serif; font-size: 0.68rem; font-weight: 700;
-    letter-spacing: 0.14em; text-transform: uppercase; color: #4b5563;
-    margin-bottom: 1.1rem; display: flex; align-items: center; gap: 0.5rem;
+    font-family: 'Syne', sans-serif; font-size: 0.86rem; font-weight: 800;
+    letter-spacing: 0.12em; text-transform: uppercase; color: #ffffff;
+    margin-bottom: 0.7rem; display: inline-flex; align-items: center; gap: 0.6rem;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.06);
+    background: rgba(255,255,255,0.03); padding: 0.18rem 0.6rem; border-radius: 8px;
 }
-.card-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.04); }
+.card-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06); opacity:0.95; margin-left:0.6rem; }
 
 /* ── Inputs ── */
 div[data-testid="stTextInput"] label,
@@ -183,7 +187,7 @@ div[data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# Helpers
 EDU_MAP   = {"High School": 0, "Bachelors": 1, "Masters": 2, "PhD": 3}
 EDU_LABELS = list(EDU_MAP.keys())
 
@@ -197,6 +201,9 @@ def engineer(df: pd.DataFrame) -> pd.DataFrame:
     d = df.copy()
     # Map education strings to integers; leave alone if already numeric
     if d["education_level"].apply(lambda x: isinstance(x, str)).any():
+        unknown = d["education_level"][~d["education_level"].isin(EDU_MAP.keys()) & d["education_level"].apply(lambda x: isinstance(x, str))]
+        if not unknown.empty:
+            st.warning(f"⚠️ Unknown education values found (mapped to 0 / High School): {unknown.unique().tolist()}")
         d["education_level"] = d["education_level"].map(EDU_MAP)
     d["education_level"]  = pd.to_numeric(d["education_level"], errors="coerce").fillna(0).astype(int)
     d["exp_x_skills"]    = d["years_experience"] * d["skills_match_score"]
@@ -204,49 +211,77 @@ def engineer(df: pd.DataFrame) -> pd.DataFrame:
     return d
 
 def score_bars(yrs, skills, edu_idx, proj, github):
+    exp_score    = min(yrs / 15 * 100, 100)          
+    skills_score = min(skills, 100)                   
+    edu_score    = min(edu_idx * 33.3, 100)           
+    github_score = min(github / 842 * 100, 100)       
+    proj_score   = min(proj / 25 * 100, 100)          
     return {
-        "Skills Match":      min(skills, 100),
-        "Experience":        min(yrs * 3.33, 100),
-        "Education":         edu_idx * 33.3,
-        "GitHub Activity":   min(github / 10, 100),
-        "Project Portfolio": min(proj * 5, 100),
+        "Skills Match":      skills_score,
+        "Experience":        exp_score,
+        "Education":         edu_score,
+        "GitHub Activity":   github_score,
+        "Project Portfolio": proj_score,
     }
 
 def tips_for(yrs, skills, proj, github, rlen, edu_idx):
     t = []
-    # ── Weaknesses ──
-    if skills < 50:   t.append(("📚", f"Skills match is low at {skills:.0f}% — focus on role-specific certifications or upskilling."))
-    elif skills < 70: t.append(("📚", f"Skills match is moderate at {skills:.0f}% — closing the gap with targeted training would help."))
-    if yrs < 2:       t.append(("💼", f"Only {yrs} year(s) of experience — emphasise internships, freelance, or part-time work."))
-    elif yrs < 4:     t.append(("💼", f"{yrs} years of experience is on the lower side for senior roles — consider applying to mid-level positions."))
-    if github < 50:   t.append(("🐙", f"GitHub activity is low ({github} commits) — shortlisted candidates in our dataset average 393 commits."))
-    elif github < 200:t.append(("🐙", f"GitHub activity ({github} commits) is below the shortlisted average of 393 commits — more public contributions would strengthen the profile."))
-    if proj < 3:      t.append(("🛠", f"Only {proj} project(s) listed — adding side projects or open-source contributions would improve this."))
-    if rlen > 2000:   t.append(("✂️", f"Resume is {rlen} words — most recruiters prefer 400–800 words; consider trimming."))
-    elif rlen < 300:  t.append(("📄", f"Resume is very short at {rlen} words — expand with more detail on experience and projects."))
-    # ── Strengths ──
-    if skills >= 80:  t.append(("✅", f"Excellent skills match at {skills:.0f}% — strong alignment with the job requirements."))
-    if yrs >= 5:      t.append(("✅", f"{yrs} years of experience is solid — candidate has substantial industry exposure."))
-    if github >= 393: t.append(("✅", f"High GitHub activity ({github} commits) — above the shortlisted candidate average of 393 commits."))
-    if proj >= 8:     t.append(("✅", f"{proj} projects demonstrates a strong, well-rounded portfolio."))
+    # Weaknesses
+    if skills < 60:   t.append(("📚", f"Skills match is low at {skills:.0f}% — shortlisted candidates average 79%. Focus on role-specific certifications or upskilling."))
+    elif skills < 74: t.append(("📚", f"Skills match of {skills:.0f}% is below the shortlisted average of 79% — targeted training would close the gap."))
+    if yrs < 3:       t.append(("💼", f"Only {yrs:.0f} year(s) of experience — below the dataset 25th percentile of 3.75 years. Emphasise internships or freelance work."))
+    elif yrs < 7:     t.append(("💼", f"{yrs:.0f} years is below the dataset median (7 yrs) and shortlisted mean (9.6 yrs) — strongest fit for mid-level roles."))
+    if github < 100:  t.append(("🐙", f"GitHub activity is very low ({github} commits) — shortlisted candidates average 393 commits."))
+    elif github < 321:t.append(("🐙", f"GitHub activity ({github} commits) is below the dataset median of 321 commits — more public contributions would help."))
+    if proj < 7:      t.append(("🛠", f"Only {proj} project(s) — below the 25th percentile of 7. Adding side or open-source projects would strengthen the profile."))
+    elif proj < 10:   t.append(("🛠", f"{proj} projects is below the dataset median of 10 — shortlisted candidates average 12.5 projects."))
+    # Strengths
+    if skills >= 79:  t.append(("✅", f"Excellent skills match at {skills:.0f}% — at or above the shortlisted candidate average of 79%."))
+    if yrs >= 9:      t.append(("✅", f"{yrs:.0f} years of experience — at or above the shortlisted mean of 9.6 years."))
+    if github >= 393: t.append(("✅", f"Strong GitHub activity ({github} commits) — at or above the shortlisted candidate average of 393 commits."))
+    if proj >= 12:    t.append(("✅", f"{proj} projects — at or above the shortlisted average of 12.5."))
     if edu_idx >= 2:  t.append(("✅", f"Advanced degree ({EDU_LABELS[edu_idx]}) adds academic credibility to the profile."))
     if not t:         t.append(("🌟", "Solid profile with no major red flags — competitive candidate overall."))
     return t
 
-@st.cache_resource
-def load_model():
-    return joblib.load("models/random_forest.pkl")
+MODEL_PATHS = {
+    "Random Forest":       "models/random_forest.pkl",
+    "XGBoost":             "models/xgboost.pkl",
+    "Logistic Regression": "models/logistic_regression.pkl",
+}
+SCALER_PATH = "models/scaler.pkl"
 
-def run_model(df_engineered):
-    model = load_model()
-    cols  = ["years_experience","skills_match_score","education_level",
-             "project_count","resume_length","github_activity",
-             "exp_x_skills","resume_per_proj"]
-    preds = model.predict(df_engineered[cols])
-    probas = model.predict_proba(df_engineered[cols])[:,1]
+FEATURE_COLS = [
+    "years_experience","skills_match_score","education_level",
+    "project_count","resume_length","github_activity",
+    "exp_x_skills","resume_per_proj",
+]
+
+@st.cache_resource
+def load_artifacts():
+    """Load whichever model files exist. Returns dict of {name: model} and scaler (or None)."""
+    models = {}
+    for name, path in MODEL_PATHS.items():
+        if os.path.exists(path):
+            models[name] = joblib.load(path)
+    scaler = joblib.load(SCALER_PATH) if os.path.exists(SCALER_PATH) else None
+    return models, scaler
+
+def run_model(df_engineered, model_name):
+    models, scaler = load_artifacts()
+    if not models:
+        raise FileNotFoundError("No model files found in models/")
+    # Fall back to first available if chosen name not found
+    model = models.get(model_name) or next(iter(models.values()))
+    X = df_engineered[FEATURE_COLS]
+    # Logistic Regression requires scaled input
+    if "Logistic" in model_name and scaler is not None:
+        X = scaler.transform(X)
+    preds  = model.predict(X)
+    probas = model.predict_proba(X)[:, 1]
     return preds, probas
 
-# ── Top bar ───────────────────────────────────────────────────────────────────
+# Top bar
 st.markdown("""
 <div class="topbar">
   <div class="topbar-brand">⬡ RecruitAI</div>
@@ -254,26 +289,24 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Tabs ──────────────────────────────────────────────────────────────────────
+# Tabs
 tab_single, tab_bulk, tab_guide = st.tabs([
     "  🔍  Single Candidate  ",
     "  📂  Bulk Analysis  ",
     "  📋  CSV Guide  ",
 ])
 
-# ═══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — SINGLE CANDIDATE
-# ═══════════════════════════════════════════════════════════════════════════════
 with tab_single:
     left, right = st.columns([1.05, 0.95], gap="large")
 
     with left:
-        # ── Identity ─────────────────────────────────────────────────────────
+        # Identity
         st.markdown('<div class="card"><div class="card-title">Candidate Identity</div>', unsafe_allow_html=True)
         candidate_name = st.text_input("Full Name", placeholder="e.g. Budi Santoso")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Qualifications ────────────────────────────────────────────────────
+        # Qualifications
         st.markdown('<div class="card"><div class="card-title">Qualifications & Experience</div>', unsafe_allow_html=True)
         c3, c4 = st.columns(2)
         with c3:
@@ -298,7 +331,7 @@ with tab_single:
         """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Portfolio ─────────────────────────────────────────────────────────
+        # Portfolio
         st.markdown('<div class="card"><div class="card-title">Portfolio & Digital Presence</div>', unsafe_allow_html=True)
         c5, c6 = st.columns(2)
         with c5:
@@ -311,9 +344,11 @@ with tab_single:
             help="Approximate word count — aim for 400–800 words for most roles")
         st.markdown('</div>', unsafe_allow_html=True)
 
+        selected_model = "Random Forest"
+
         analyse_btn = st.button("🔍  Analyse Candidate", use_container_width=True)
 
-    # ── Results ──────────────────────────────────────────────────────────────
+    # Results
     with right:
         edu_idx = EDU_MAP[education_level]
         exp_x_skills    = years_experience * skills_match_score
@@ -341,7 +376,7 @@ with tab_single:
                         "project_count","resume_length","github_activity",
                         "exp_x_skills","resume_per_proj"
                     ])
-                    preds, probas = run_model(row)
+                    preds, probas = run_model(row, selected_model)
                     prediction = preds[0]; probability = probas[0]
                     display_name = candidate_name.strip() or "Candidate"
 
@@ -387,7 +422,7 @@ with tab_single:
                         st.markdown(f'<div class="tip-row"><span class="tip-icon">{icon}</span><span>{tip}</span></div>', unsafe_allow_html=True)
 
                 except FileNotFoundError:
-                    st.warning("⚠️ Model not found at `models/random_forest.pkl` — place your trained model there and restart.")
+                    st.warning("⚠️ No model files found in `models/` — save your trained models (random_forest.pkl, xgboost.pkl, logistic_regression.pkl, scaler.pkl) there and restart.")
         else:
             # Profile preview bars (always live)
             st.markdown('<div class="card"><div class="card-title">Live Profile Preview</div>', unsafe_allow_html=True)
@@ -407,9 +442,7 @@ with tab_single:
             </div>
             """, unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — BULK ANALYSIS
-# ═══════════════════════════════════════════════════════════════════════════════
 with tab_bulk:
 
     up_col, info_col = st.columns([1.1, 0.9], gap="large")
@@ -423,39 +456,40 @@ with tab_bulk:
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
+        bulk_model = "Random Forest"
+
         if uploaded:
             try:
                 df_raw = pd.read_csv(uploaded)
 
-                # ── Validation ────────────────────────────────────────────────
+                # Validation
                 missing = [c for c in REQUIRED_COLS if c not in df_raw.columns]
                 if missing:
                     st.error(f"Missing columns: **{', '.join(missing)}** — check the CSV Guide tab.")
-                    st.stop()
+                else:
+                    st.success(f"✅ File loaded — **{len(df_raw):,} rows** detected.")
 
-                st.success(f"✅ File loaded — **{len(df_raw):,} rows** detected.")
+                    # Preview
+                    with st.expander("Preview uploaded data", expanded=False):
+                        st.dataframe(df_raw.head(10), use_container_width=True)
 
-                # Preview
-                with st.expander("Preview uploaded data", expanded=False):
-                    st.dataframe(df_raw.head(10), use_container_width=True)
+                    run_bulk = st.button("⚡  Run Bulk Analysis", use_container_width=True)
 
-                run_bulk = st.button("⚡  Run Bulk Analysis", use_container_width=True)
+                    if run_bulk:
+                        with st.spinner(f"Analysing {len(df_raw):,} candidates…"):
+                            time.sleep(0.4)
+                            df_eng = engineer(df_raw[REQUIRED_COLS].copy())
+                            preds, probas = run_model(df_eng, bulk_model)
 
-                if run_bulk:
-                    with st.spinner(f"Analysing {len(df_raw):,} candidates…"):
-                        time.sleep(0.4)
-                        df_eng = engineer(df_raw[REQUIRED_COLS].copy())
-                        preds, probas = run_model(df_eng)
+                        df_results = df_raw.copy()
+                        df_results["shortlist_probability"] = (probas * 100).round(1)
+                        df_results["prediction"]            = preds
+                        df_results["verdict"]               = df_results["prediction"].map({1: "Shortlisted", 0: "Not Shortlisted"})
+                        df_results = df_results.sort_values("shortlist_probability", ascending=False).reset_index(drop=True)
+                        df_results.index += 1
 
-                    df_results = df_raw.copy()
-                    df_results["shortlist_probability"] = (probas * 100).round(1)
-                    df_results["prediction"]            = preds
-                    df_results["verdict"]               = df_results["prediction"].map({1: "Shortlisted", 0: "Not Shortlisted"})
-                    df_results = df_results.sort_values("shortlist_probability", ascending=False).reset_index(drop=True)
-                    df_results.index += 1
-
-                    st.session_state["bulk_results"] = df_results
-                    st.session_state["bulk_ran"] = True
+                        st.session_state["bulk_results"] = df_results
+                        st.session_state["bulk_ran"] = True
 
             except Exception as e:
                 st.error(f"Error processing file: {e}")
@@ -480,9 +514,7 @@ with tab_bulk:
 
             # Filter
             filter_opt = st.selectbox("Filter results", ["All Candidates", "Shortlisted Only", "Not Shortlisted Only"])
-            df_show = df_res.copy()
-            if filter_opt == "Shortlisted Only":    df_show = df_res[df_res["prediction"] == 1]
-            elif filter_opt == "Not Shortlisted Only": df_show = df_res[df_res["prediction"] == 0]
+            st.session_state["_filter"] = filter_opt
 
         else:
             st.markdown("""
@@ -493,16 +525,24 @@ with tab_bulk:
             </div>
             """, unsafe_allow_html=True)
 
-    # ── Full results table (full width) ───────────────────────────────────────
+    # Full results table (full width)
     if st.session_state.get("bulk_ran") and "bulk_results" in st.session_state:
-        df_res  = st.session_state["bulk_results"]
+        df_res      = st.session_state["bulk_results"]
         filter_opt2 = st.session_state.get("_filter", "All Candidates")
+
+        # Apply filter
+        if filter_opt2 == "Shortlisted Only":
+            df_filtered = df_res[df_res["prediction"] == 1]
+        elif filter_opt2 == "Not Shortlisted Only":
+            df_filtered = df_res[df_res["prediction"] == 0]
+        else:
+            df_filtered = df_res.copy()
 
         st.markdown('<div style="margin-top:1.5rem;"><div class="card-title" style="font-size:0.68rem; letter-spacing:0.14em; color:#4b5563; font-family:\'Syne\',sans-serif; font-weight:700; text-transform:uppercase;">Results Table</div></div>', unsafe_allow_html=True)
 
         # Build display df
-        display_cols = ["verdict", "shortlist_probability"] + [c for c in df_res.columns if c not in ("verdict","shortlist_probability","prediction")]
-        df_display = df_res[display_cols].copy()
+        display_cols = ["verdict", "shortlist_probability"] + [c for c in df_filtered.columns if c not in ("verdict","shortlist_probability","prediction")]
+        df_display = df_filtered[display_cols].copy()
         df_display.columns = [c.replace("_"," ").title() for c in df_display.columns]
 
         st.dataframe(
@@ -517,7 +557,7 @@ with tab_bulk:
             }
         )
 
-        # ── Export ────────────────────────────────────────────────────────────
+        # Export
         ex1, ex2, _ = st.columns([1, 1, 2])
         with ex1:
             csv_bytes = df_res.to_csv(index=False).encode()
@@ -529,18 +569,17 @@ with tab_bulk:
                 use_container_width=True,
             )
         with ex2:
-            shortlisted_csv = df_res[df_res["prediction"] == 1].to_csv(index=False).encode()
+            shortlisted_df  = df_res[df_res["prediction"] == 1]
+            shortlisted_csv = shortlisted_df.to_csv(index=False).encode()
             st.download_button(
-                "⬇  Shortlisted Only",
+                f"⬇  Shortlisted Only ({len(shortlisted_df):,})",
                 data=shortlisted_csv,
                 file_name="recruitai_shortlisted.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
 
-# ═══════════════════════════════════════════════════════════════════════════════
 # TAB 3 — CSV GUIDE
-# ═══════════════════════════════════════════════════════════════════════════════
 with tab_guide:
     g1, g2 = st.columns([1, 1], gap="large")
 
