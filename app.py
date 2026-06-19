@@ -16,7 +16,7 @@ st.set_page_config(
 # CSS
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
 
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 .stApp { background: #07090f; color: #dde1ec; }
@@ -31,7 +31,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
     margin-bottom: 1.6rem;
 }
 .topbar-brand {
-    font-family: 'Syne', sans-serif; font-size: 1.15rem; font-weight: 800;
+    font-family: 'Inter', sans-serif; font-size: 1.15rem; font-weight: 800;
     background: linear-gradient(135deg, #e2e8f0, #818cf8);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     letter-spacing: -0.01em;
@@ -48,7 +48,7 @@ div[data-testid="stTabs"] [role="tablist"] {
     border: 1px solid rgba(255,255,255,0.06) !important; padding: 4px !important; gap: 4px !important;
 }
 div[data-testid="stTabs"] [role="tab"] {
-    border-radius: 8px !important; font-family: 'Syne', sans-serif !important;
+    border-radius: 8px !important; font-family: 'Inter', sans-serif !important;
     font-size: 0.82rem !important; font-weight: 600 !important;
     color: #6b7280 !important; padding: 0.5rem 1.2rem !important;
     border: none !important;
@@ -64,7 +64,7 @@ div[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
     box-shadow: 0 10px 30px rgba(2,6,23,0.6);
 }
 .card-title {
-    font-family: 'Syne', sans-serif; font-size: 0.86rem; font-weight: 800;
+    font-family: 'Inter', sans-serif; font-size: 0.86rem; font-weight: 800;
     letter-spacing: 0.12em; text-transform: uppercase; color: #ffffff;
     margin-bottom: 0.7rem; display: inline-flex; align-items: center; gap: 0.6rem;
     text-shadow: 0 1px 0 rgba(0,0,0,0.06);
@@ -126,10 +126,10 @@ div[data-testid="stSlider"] [data-baseweb="slider"] { margin-top: 0.2rem; }
 }
 .verdict-icon { font-size: 2rem; flex-shrink: 0; }
 .verdict-pct {
-    font-family: 'Syne', sans-serif; font-size: 2.4rem;
+    font-family: 'Inter', sans-serif; font-size: 2.4rem;
     font-weight: 800; line-height: 1;
 }
-.verdict-tag { font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.15rem; }
+.verdict-tag { font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.15rem; }
 .verdict-sub { font-size: 0.75rem; color: #9ca3af; }
 
 /* ── Tip rows ── */
@@ -145,8 +145,8 @@ div[data-testid="stSlider"] [data-baseweb="slider"] { margin-top: 0.2rem; }
     background: #0d1117; border: 1px solid rgba(255,255,255,0.06);
     border-radius: 12px; padding: 1.1rem 1.4rem; text-align: center;
 }
-.stat-val { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; line-height: 1; }
-.stat-lbl { font-size: 0.72rem; color: #6b7280; margin-top: 0.3rem; font-weight: 500; }
+.stat-val { font-family: 'DM Sans', sans-serif; font-size: 2.2rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat-lbl { font-family: 'DM Sans', sans-serif; font-size: 0.85rem; color: #9ca3af; margin-top: 0.4rem; font-weight: 600; }
 
 /* ── Status pills ── */
 .pill-pass {
@@ -166,7 +166,7 @@ div[data-testid="stSlider"] [data-baseweb="slider"] { margin-top: 0.2rem; }
 .stButton > button {
     background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
     color: white !important; border: none !important; border-radius: 10px !important;
-    padding: 0.7rem 1.6rem !important; font-family: 'Syne', sans-serif !important;
+    padding: 0.7rem 1.6rem !important; font-family: 'Inter', sans-serif !important;
     font-size: 0.85rem !important; font-weight: 700 !important;
     letter-spacing: 0.04em !important; transition: all 0.2s !important;
 }
@@ -404,7 +404,7 @@ with tab_single:
                         """, unsafe_allow_html=True)
 
                     # Score breakdown
-                    st.markdown('<br><div class="card-title" style="font-size:0.68rem; letter-spacing:0.14em; color:#4b5563; font-family:\'Syne\',sans-serif; font-weight:700; text-transform:uppercase;">Profile Score Breakdown</div>', unsafe_allow_html=True)
+                    st.markdown('<br><div class="card-title" style="font-size:0.68rem; letter-spacing:0.14em; color:#4b5563; font-family:\'Inter\',sans-serif; font-weight:700; text-transform:uppercase;">Profile Score Breakdown</div>', unsafe_allow_html=True)
                     bars = score_bars(years_experience, skills_match_score, edu_idx, project_count, github_activity)
                     for lbl, pct in bars.items():
                         c = "#34d399" if pct >= 70 else "#fbbf24" if pct >= 40 else "#f87171"
@@ -417,7 +417,7 @@ with tab_single:
 
                     # Tips
                     tips = tips_for(years_experience, skills_match_score, project_count, github_activity, resume_length, edu_idx)
-                    st.markdown('<br><div class="card-title" style="font-size:0.68rem; letter-spacing:0.14em; color:#4b5563; font-family:\'Syne\',sans-serif; font-weight:700; text-transform:uppercase;">Recruiter Notes</div>', unsafe_allow_html=True)
+                    st.markdown('<br><div class="card-title" style="font-size:0.68rem; letter-spacing:0.14em; color:#4b5563; font-family:\'Inter\',sans-serif; font-weight:700; text-transform:uppercase;">Recruiter Notes</div>', unsafe_allow_html=True)
                     for icon, tip in tips:
                         st.markdown(f'<div class="tip-row"><span class="tip-icon">{icon}</span><span>{tip}</span></div>', unsafe_allow_html=True)
 
@@ -520,7 +520,7 @@ with tab_bulk:
             st.markdown("""
             <div style="border:1.5px dashed rgba(99,102,241,0.18); border-radius:14px; padding:3rem 2rem; text-align:center; color:#4b5563;">
                 <div style="font-size:2.5rem; margin-bottom:0.8rem;">📂</div>
-                <div style="font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700; color:#374151; margin-bottom:0.4rem;">Upload a CSV to begin</div>
+                <div style="font-family:'Inter',sans-serif; font-size:0.95rem; font-weight:700; color:#374151; margin-bottom:0.4rem;">Upload a CSV to begin</div>
                 <div style="font-size:0.8rem; line-height:1.7;">Upload your candidates file on the left.<br>Results, stats, and export will appear here.</div>
             </div>
             """, unsafe_allow_html=True)
@@ -538,7 +538,7 @@ with tab_bulk:
         else:
             df_filtered = df_res.copy()
 
-        st.markdown('<div style="margin-top:1.5rem;"><div class="card-title" style="font-size:0.68rem; letter-spacing:0.14em; color:#4b5563; font-family:\'Syne\',sans-serif; font-weight:700; text-transform:uppercase;">Results Table</div></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top:1.5rem;"><div class="card-title" style="font-size:0.68rem; letter-spacing:0.14em; color:#4b5563; font-family:\'Inter\',sans-serif; font-weight:700; text-transform:uppercase;">Results Table</div></div>', unsafe_allow_html=True)
 
         # Build display df
         display_cols = ["verdict", "shortlist_probability"] + [c for c in df_filtered.columns if c not in ("verdict","shortlist_probability","prediction")]
