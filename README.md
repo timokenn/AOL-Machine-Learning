@@ -15,12 +15,21 @@ Describes the required input columns, accepted value ranges, and field definitio
 
 ## Requirements
 
-Python 3.8 or later is recommended.
+Python 3.14.2 is used for this project.
+
+Dependencies are listed in `requirements.txt`:
+
+| Package | Version | Purpose |
+|---|---|---|
+| streamlit | >=1.35.0 | Web app framework |
+| pandas | >=2.0.0 | Data loading and manipulation |
+| joblib | >=1.3.0 | Loading the trained `.pkl` model file |
+| scikit-learn | >=1.4.0 | Random Forest classifier |
 
 Install dependencies:
 
 ```
-pip install streamlit pandas joblib scikit-learn
+pip install -r requirements.txt
 ```
 
 ## Project Structure
@@ -28,6 +37,7 @@ pip install streamlit pandas joblib scikit-learn
 ```
 .
 ├── app.py
+├── requirements.txt
 └── models/
     └── random_forest.pkl
 ```
