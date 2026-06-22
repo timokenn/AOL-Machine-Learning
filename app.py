@@ -244,12 +244,7 @@ def tips_for(yrs, skills, proj, github, rlen, edu_idx):
     if not t:         t.append(("🌟", "Solid profile with no major red flags — competitive candidate overall."))
     return t
 
-MODEL_PATHS = {
-    "Random Forest":       "models/random_forest.pkl",
-    "XGBoost":             "models/xgboost.pkl",
-    "Logistic Regression": "models/logistic_regression.pkl",
-}
-SCALER_PATH = "models/scaler.pkl"
+MODEL_PATH = "models/random_forest.pkl"
 
 FEATURE_COLS = [
     "years_experience","skills_match_score","education_level",
@@ -258,25 +253,14 @@ FEATURE_COLS = [
 ]
 
 @st.cache_resource
-def load_artifacts():
-    """Load whichever model files exist. Returns dict of {name: model} and scaler (or None)."""
-    models = {}
-    for name, path in MODEL_PATHS.items():
-        if os.path.exists(path):
-            models[name] = joblib.load(path)
-    scaler = joblib.load(SCALER_PATH) if os.path.exists(SCALER_PATH) else None
-    return models, scaler
+def load_model():
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError("No model file found at models/random_forest.pkl")
+    return joblib.load(MODEL_PATH)
 
-def run_model(df_engineered, model_name):
-    models, scaler = load_artifacts()
-    if not models:
-        raise FileNotFoundError("No model files found in models/")
-    # Fall back to first available if chosen name not found
-    model = models.get(model_name) or next(iter(models.values()))
+def run_model(df_engineered):
+    model = load_model()
     X = df_engineered[FEATURE_COLS]
-    # Logistic Regression requires scaled input
-    if "Logistic" in model_name and scaler is not None:
-        X = scaler.transform(X)
     preds  = model.predict(X)
     probas = model.predict_proba(X)[:, 1]
     return preds, probas
@@ -344,8 +328,6 @@ with tab_single:
             help="Approximate word count — aim for 400–800 words for most roles")
         st.markdown('</div>', unsafe_allow_html=True)
 
-        selected_model = "Random Forest"
-
         analyse_btn = st.button("🔍  Analyse Candidate", use_container_width=True)
 
     # Results
@@ -376,7 +358,7 @@ with tab_single:
                         "project_count","resume_length","github_activity",
                         "exp_x_skills","resume_per_proj"
                     ])
-                    preds, probas = run_model(row, selected_model)
+                    preds, probas = run_model(row)
                     prediction = preds[0]; probability = probas[0]
                     display_name = candidate_name.strip() or "Candidate"
 
@@ -422,7 +404,7 @@ with tab_single:
                         st.markdown(f'<div class="tip-row"><span class="tip-icon">{icon}</span><span>{tip}</span></div>', unsafe_allow_html=True)
 
                 except FileNotFoundError:
-                    st.warning("⚠️ No model files found in `models/` — save your trained models (random_forest.pkl, xgboost.pkl, logistic_regression.pkl, scaler.pkl) there and restart.")
+                    st.warning("⚠️ No model file found — save your trained model as `models/random_forest.pkl` and restart.")
         else:
             # Profile preview bars (always live)
             st.markdown('<div class="card"><div class="card-title">Live Profile Preview</div>', unsafe_allow_html=True)
@@ -456,8 +438,6 @@ with tab_bulk:
         )
         st.markdown('</div>', unsafe_allow_html=True)
 
-        bulk_model = "Random Forest"
-
         if uploaded:
             try:
                 df_raw = pd.read_csv(uploaded)
@@ -479,7 +459,7 @@ with tab_bulk:
                         with st.spinner(f"Analysing {len(df_raw):,} candidates…"):
                             time.sleep(0.4)
                             df_eng = engineer(df_raw[REQUIRED_COLS].copy())
-                            preds, probas = run_model(df_eng, bulk_model)
+                            preds, probas = run_model(df_eng)
 
                         df_results = df_raw.copy()
                         df_results["shortlist_probability"] = (probas * 100).round(1)
