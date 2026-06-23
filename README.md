@@ -5,8 +5,6 @@ Google Drive: [here](https://drive.google.com/drive/folders/180ttjkWxTUuzjuPe27S
 
 A Streamlit web application for automated resume screening using a Random Forest classifier. The app supports both single-candidate evaluation and bulk CSV analysis, with a dark-themed UI and recruiter-facing feedback.
 
-Due to size capacity, please unzip `random_forest.zip` and place it inside the model folder `./models/random_forest.pkl`
-
 ## Features
 
 **Single Candidate**
