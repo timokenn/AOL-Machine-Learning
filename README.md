@@ -1,3 +1,5 @@
+## Deployed: [here](https://lm01-group-10-ml.streamlit.app)
+
 # RecruitAI - Resume Screener
 
 A Streamlit web application for automated resume screening using a Random Forest classifier. The app supports both single-candidate evaluation and bulk CSV analysis, with a dark-themed UI and recruiter-facing feedback.
